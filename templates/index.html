@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WikiExplain</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .tooltip-box {
+      display: none;
+      position: absolute;
+      background-color: white;
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      z-index: 10;
+    }
+  </style>
+  <script>
+    let loadingInterval;
+
+    async function getSummary(detail) {
+      const title = document.getElementById('title').value;
+      const summaryEl = document.getElementById('summary');
+      const diffButtons = document.querySelectorAll('.summary-btn');
+
+      summaryEl.textContent = "";
+      let dots = 0;
+      summaryEl.textContent = "Loading";
+      loadingInterval = setInterval(() => {
+        dots = (dots + 1) % 4;
+        summaryEl.textContent = "Loading" + ".".repeat(dots);
+      }, 500);
+
+      diffButtons.forEach(btn => btn.classList.remove('bg-[#F2543A]', 'hover:bg-[#e44a30]'));
+      const activeBtn = document.getElementById(`btn-${detail}`);
+      activeBtn.classList.add('bg-[#F2543A]', 'hover:bg-[#e44a30]');
+
+      const response = await fetch('/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, detail })
+      });
+      const data = await response.json();
+      clearInterval(loadingInterval);
+      summaryEl.textContent = data.error || data.summary;
+    }
+
+    document.addEventListener('mouseup', function (e) {
+      const selection = window.getSelection();
+      const selectedText = selection.toString().trim();
+      const tooltip = document.getElementById('tooltip');
+      if (selectedText.length > 0) {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        tooltip.style.display = 'block';
+        tooltip.style.top = `${rect.top + window.scrollY - 50}px`;
+        tooltip.style.left = `${rect.left + window.scrollX}px`;
+        tooltip.innerHTML = `<strong>Clarify:</strong> “${selectedText}”`;
+      } else {
+        tooltip.style.display = 'none';
+      }
+    });
+
+    function copySummary() {
+      const summaryText = document.getElementById("summary").textContent;
+      navigator.clipboard.writeText(summaryText);
+      alert("Summary copied to clipboard!");
+    }
+  </script>
+</head>
+<body class="bg-[#D8E9F5] text-gray-800 font-sans min-h-screen relative">
+  <div id="tooltip" class="tooltip-box"></div>
+
+  <div class="max-w-4xl mx-auto p-6">
+    <h1 class="text-4xl font-bold text-center mb-6 text-[#F2543A]">WikiExplain</h1>
+    <p class="text-center text-lg mb-6 text-[#333]">Explore Wikipedia articles at your own pace. Select a summary length to begin.</p>
+
+    <div class="bg-white p-6 rounded-lg shadow mb-6">
+      <label for="title" class="block text-xl font-medium mb-2">Article Title</label>
+      <input id="title" placeholder="e.g. Climate change" class="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#89BBDE]">
+
+      <div class="flex flex-wrap gap-3 mt-4">
+        <button id="btn-short" onclick="getSummary('short')" class="summary-btn bg-[#89BBDE] text-white px-4 py-2 rounded hover:bg-[#76a6c9]">Quick Overview</button>
+        <button id="btn-medium" onclick="getSummary('medium')" class="summary-btn bg-[#89BBDE] text-white px-4 py-2 rounded hover:bg-[#76a6c9]">Concise Summary</button>
+        <button id="btn-long" onclick="getSummary('long')" class="summary-btn bg-[#89BBDE] text-white px-4 py-2 rounded hover:bg-[#76a6c9]">Detailed Breakdown</button>
+      </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow mb-4">
+      <h2 class="text-2xl font-semibold text-[#F2543A] mb-2">Article Summary</h2>
+      <pre id="summary" class="whitespace-pre-wrap bg-[#f1f5f9] p-4 rounded border border-gray-200 text-sm overflow-x-auto">No summary yet. Select a summary level to begin.</pre>
+    </div>
+
+    <div class="flex flex-wrap gap-3 items-center">
+      <button onclick="getSummary('long')" class="bg-[#F2543A] text-white px-4 py-2 rounded hover:bg-[#e44a30]">Regenerate</button>
+      <button onclick="copySummary()" class="bg-[#89BBDE] text-white px-4 py-2 rounded hover:bg-[#76a6c9]">Copy Summary</button>
+      <label class="ml-4 text-sm text-gray-600">More Technical
+        <input type="range" min="0" max="100" value="50" class="mx-2 align-middle">
+        Less Technical
+      </label>
+    </div>
+  </div>
+</body>
+</html>
