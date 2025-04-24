@@ -5,101 +5,175 @@
   <title>WikiExplain</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    .tooltip-box {
-      display: none;
-      position: absolute;
-      background-color: white;
-      border: 1px solid #ccc;
-      padding: 0.5rem;
-      border-radius: 0.5rem;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-      z-index: 10;
+    .section-content {
+      margin-bottom: 1.5rem;
+    }
+    .toc-link {
+      cursor: pointer;
+      color: #24648c;
+    }
+    .toc-link:hover {
+      text-decoration: underline;
     }
   </style>
-  <script>
-    let loadingInterval;
+</head>
+<body class="bg-[#D8E9F5] text-gray-800 font-sans min-h-screen relative">
 
-    async function getSummary(detail) {
+  <div class="flex">
+    <div class="w-3/4 max-w-4xl mx-auto p-6">
+      <h1 class="text-4xl font-bold text-center mb-6 text-[#24648c]">WikiExplain</h1>
+      <p class="text-center text-lg mb-6 text-[#333]">Interactively explore Wikipedia articles by section. Highlight any part to dig deeper.</p>
+
+      <div class="bg-white p-6 rounded-lg shadow mb-6">
+        <label for="title" class="block text-xl font-medium mb-2">Article Title</label>
+        <input id="title" placeholder="e.g. Climate change" class="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#89BBDE]">
+
+        <div class="flex gap-6 mt-6">
+          <label class="text-sm text-gray-600">Beginner
+            <input id="technicalSlider" type="range" min="0" max="100" value="50" class="mx-2 align-middle">
+            Expert
+          </label>
+          <label class="text-sm text-gray-600">More Concise
+            <input id="lengthSlider" type="range" min="0" max="100" value="50" class="mx-2 align-middle">
+            More Detailed
+          </label>
+        </div>
+
+        <div class="mt-6">
+          <button onclick="getSummary()" class="bg-[#F2543A] text-white px-4 py-2 rounded hover:bg-[#e44a30]">Generate Summary</button>
+        </div>
+      </div>
+
+      <div class="bg-white p-6 rounded-lg shadow mb-4 relative">
+        <h2 class="text-2xl font-semibold text-[#24648c] mb-4">Article Summary</h2>
+        <div id="summary" class="bg-[#f1f5f9] p-4 rounded border border-gray-200 text-sm overflow-x-auto min-h-[100px]">No summary yet.</div>
+      </div>
+
+      <div class="flex flex-wrap gap-3 items-center mb-10">
+        <button onclick="getSummary()" class="bg-[#F2543A] text-white px-4 py-2 rounded hover:bg-[#e44a30]">Regenerate</button>
+        <button onclick="copySummary()" class="bg-[#89BBDE] text-white px-4 py-2 rounded hover:bg-[#76a6c9]">Copy Summary</button>
+      </div>
+    </div>
+
+    <div id="toc-container" class="w-1/4 sticky top-10 h-full p-4 bg-white border-l border-gray-300 shadow-sm hidden">
+      <div id="toc"></div>
+    </div>
+  </div>
+
+  <div id="ai-button-container" class="fixed top-1/2 right-4 hidden z-50">
+    <button id="ai-explain-btn" class="bg-blue-600 text-white px-4 py-2 rounded shadow">🧠 Explain with AI</button>
+  </div>
+
+  <div id="ai-result" class="fixed bottom-4 right-4 bg-white border border-gray-300 p-4 rounded shadow-md w-80 hidden z-50"></div>
+
+  <script>
+    async function getSummary() {
       const title = document.getElementById('title').value;
       const summaryEl = document.getElementById('summary');
-      const diffButtons = document.querySelectorAll('.summary-btn');
+      const tocEl = document.getElementById('toc');
+      const technicalValue = document.getElementById('technicalSlider').value;
+      const lengthValue = document.getElementById('lengthSlider').value;
 
-      summaryEl.textContent = "";
-      let dots = 0;
-      summaryEl.textContent = "Loading";
-      loadingInterval = setInterval(() => {
-        dots = (dots + 1) % 4;
-        summaryEl.textContent = "Loading" + ".".repeat(dots);
-      }, 500);
-
-      diffButtons.forEach(btn => btn.classList.remove('bg-[#F2543A]', 'hover:bg-[#e44a30]'));
-      const activeBtn = document.getElementById(`btn-${detail}`);
-      activeBtn.classList.add('bg-[#F2543A]', 'hover:bg-[#e44a30]');
+      summaryEl.innerHTML = "Loading...";
+      tocEl.innerHTML = "";
+      document.getElementById('toc-container').classList.add('hidden');
 
       const response = await fetch('/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, detail })
+        body: JSON.stringify({ title, length: lengthValue, technical: technicalValue })
       });
+
       const data = await response.json();
-      clearInterval(loadingInterval);
-      summaryEl.textContent = data.error || data.summary;
+      summaryEl.innerHTML = formatSummary(data.error || data.summary);
     }
 
-    document.addEventListener('mouseup', function (e) {
-      const selection = window.getSelection();
-      const selectedText = selection.toString().trim();
-      const tooltip = document.getElementById('tooltip');
-      if (selectedText.length > 0) {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        tooltip.style.display = 'block';
-        tooltip.style.top = `${rect.top + window.scrollY - 50}px`;
-        tooltip.style.left = `${rect.left + window.scrollX}px`;
-        tooltip.innerHTML = `<strong>Clarify:</strong> “${selectedText}”`;
-      } else {
-        tooltip.style.display = 'none';
-      }
-    });
-
     function copySummary() {
-      const summaryText = document.getElementById("summary").textContent;
+      const summaryText = document.getElementById("summary").innerText;
       navigator.clipboard.writeText(summaryText);
       alert("Summary copied to clipboard!");
     }
+
+    function formatSummary(text) {
+      const lines = text.split('\n');
+      const summaryContainer = document.createElement('div');
+      const toc = document.getElementById('toc');
+      toc.innerHTML = "";
+      let currentSection = null;
+
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (/^[A-Z][\w\s]+:?$/.test(trimmed)) {
+          const sectionId = trimmed.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+          const header = document.createElement('h3');
+          header.innerHTML = `<button onclick="toggleSection('${sectionId}')" class='font-bold text-[#24648c] text-base'>▾ ${trimmed.replace(/:$/, '')}</button>`;
+          header.classList.add('mt-6');
+          summaryContainer.appendChild(header);
+
+          const sectionDiv = document.createElement('div');
+          sectionDiv.className = 'section-content';
+          sectionDiv.id = sectionId;
+          summaryContainer.appendChild(sectionDiv);
+          currentSection = sectionDiv;
+
+          const tocItem = document.createElement('div');
+          tocItem.className = 'toc-link mb-1';
+          tocItem.innerText = trimmed.replace(/:$/, '');
+          tocItem.onclick = () => document.getElementById(sectionId).scrollIntoView({ behavior: 'smooth' });
+          toc.appendChild(tocItem);
+        } else if (currentSection) {
+          const p = document.createElement('p');
+          p.textContent = trimmed;
+          p.className = 'mt-1';
+          currentSection.appendChild(p);
+        }
+      });
+
+      if (toc.childNodes.length > 0) {
+        document.getElementById('toc-container').classList.remove('hidden');
+        toc.insertAdjacentHTML('afterbegin', "<h3 class='font-semibold text-lg mb-2'>Sections</h3>");
+      }
+
+      return summaryContainer.innerHTML;
+    }
+
+    function toggleSection(id) {
+      const section = document.getElementById(id);
+      const btn = section.previousSibling.querySelector('button');
+      section.style.display = section.style.display === 'none' ? 'block' : 'none';
+      const label = btn.innerText.slice(2);
+      btn.innerHTML = `${section.style.display === 'none' ? '▸' : '▾'} ${label}`;
+    }
+
+    document.addEventListener('mouseup', () => {
+      console.log("Mouseup event triggered");
+      const selection = window.getSelection();
+      const selectedText = selection.toString().trim();
+      const summaryEl = document.getElementById('summary');
+      const buttonBox = document.getElementById('ai-button-container');
+      const resultBox = document.getElementById('ai-result');
+
+      if (!selectedText || !summaryEl.contains(selection.anchorNode)) {
+        buttonBox.classList.add('hidden');
+        resultBox.classList.add('hidden');
+        return;
+      }
+
+      console.log("Selected text:", selectedText);
+      buttonBox.classList.remove('hidden');
+
+      document.getElementById('ai-explain-btn').onclick = async () => {
+        resultBox.innerText = "Thinking...";
+        resultBox.classList.remove('hidden');
+        const res = await fetch('/clarify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: selectedText })
+        });
+        const data = await res.json();
+        resultBox.innerHTML = `<strong>AI Explanation:</strong><br>${data.clarification}`;
+      };
+    });
   </script>
-</head>
-<body class="bg-[#D8E9F5] text-gray-800 font-sans min-h-screen relative">
-  <div id="tooltip" class="tooltip-box"></div>
-
-  <div class="max-w-4xl mx-auto p-6">
-    <h1 class="text-4xl font-bold text-center mb-6 text-[#F2543A]">WikiExplain</h1>
-    <p class="text-center text-lg mb-6 text-[#333]">Explore Wikipedia articles at your own pace. Select a summary length to begin.</p>
-
-    <div class="bg-white p-6 rounded-lg shadow mb-6">
-      <label for="title" class="block text-xl font-medium mb-2">Article Title</label>
-      <input id="title" placeholder="e.g. Climate change" class="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#89BBDE]">
-
-      <div class="flex flex-wrap gap-3 mt-4">
-        <button id="btn-short" onclick="getSummary('short')" class="summary-btn bg-[#89BBDE] text-white px-4 py-2 rounded hover:bg-[#76a6c9]">Quick Overview</button>
-        <button id="btn-medium" onclick="getSummary('medium')" class="summary-btn bg-[#89BBDE] text-white px-4 py-2 rounded hover:bg-[#76a6c9]">Concise Summary</button>
-        <button id="btn-long" onclick="getSummary('long')" class="summary-btn bg-[#89BBDE] text-white px-4 py-2 rounded hover:bg-[#76a6c9]">Detailed Breakdown</button>
-      </div>
-    </div>
-
-    <div class="bg-white p-6 rounded-lg shadow mb-4">
-      <h2 class="text-2xl font-semibold text-[#F2543A] mb-2">Article Summary</h2>
-      <pre id="summary" class="whitespace-pre-wrap bg-[#f1f5f9] p-4 rounded border border-gray-200 text-sm overflow-x-auto">No summary yet. Select a summary level to begin.</pre>
-    </div>
-
-    <div class="flex flex-wrap gap-3 items-center">
-      <button onclick="getSummary('long')" class="bg-[#F2543A] text-white px-4 py-2 rounded hover:bg-[#e44a30]">Regenerate</button>
-      <button onclick="copySummary()" class="bg-[#89BBDE] text-white px-4 py-2 rounded hover:bg-[#76a6c9]">Copy Summary</button>
-      <label class="ml-4 text-sm text-gray-600">More Technical
-        <input type="range" min="0" max="100" value="50" class="mx-2 align-middle">
-        Less Technical
-      </label>
-    </div>
-  </div>
 </body>
 </html>
