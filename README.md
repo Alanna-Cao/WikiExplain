@@ -1,6 +1,3 @@
-explicilty say that no open source code was used, all written by me (Please include a README file that specifies what open-source code you imported (if any), what changes you made, and what new code you implemented. (If you built your application based on any open-source initial code, we expect you make nontrivial changes to the code.) 
-)
-
 # WikiExplain: Interactive Wikipedia Summarizer
 
 **WikiExplain** is a lightweight web app that helps users explore Wikipedia articles through customizable, AI-generated summaries. Built for the Spring 2025 HAII final project, it emphasizes human-centered interaction and explainability.
@@ -13,6 +10,7 @@ explicilty say that no open source code was used, all written by me (Please incl
 - Includes a **regenerate** button for rewrites
 - Uses **GPT-4o** in zero-shot mode (no fine-tuning)
 - Floating Table of Contents and collapsible sections
+- Link to original Wikipedia article included below summary
 
 ## Tech Stack
 
@@ -20,12 +18,16 @@ explicilty say that no open source code was used, all written by me (Please incl
 - **Frontend**: Tailwind CSS + custom JavaScript
 - **Data**: Wikipedia articles via Wikipedia API
 
+## Code Origin
+
+No open-source code was used in this project. All frontend and backend logic — including Flask server logic, API querying, prompt engineering, and JavaScript interactions — were written entirely by me from scratch.
+
 ## Concepts from HAII
 
 - Prompt Engineering to guide tone, verbosity, and format
 - Human-AI Interaction Guidelines:
   - #7 & #9 – Fast recovery via Regenerate / Clarify
-  - #15 – Sentence-level feedback and explainability
+  - #15 – Granular (sentence and phrase-level) feedback, and explainability
 - Designed for AI failure and user control
 
 ## Pilot User Study
