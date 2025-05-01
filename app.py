@@ -21,8 +21,10 @@ def fetch_article_content(title):
     search_response = requests.get(WIKI_API_ENDPOINT, params=search_params).json()
     search_results = search_response.get('query', {}).get('search', [])
     if not search_results:
-        return ''
+        return '', ''
+
     best_match_title = search_results[0]['title']
+    article_url = f"https://en.wikipedia.org/wiki/{best_match_title.replace(' ', '_')}"
 
     extract_params = {
         'action': 'query',
@@ -34,7 +36,7 @@ def fetch_article_content(title):
     extract_response = requests.get(WIKI_API_ENDPOINT, params=extract_params).json()
     pages = extract_response['query']['pages']
     page = next(iter(pages.values()))
-    return page.get('extract', '')
+    return page.get('extract', ''), article_url
 
 def strip_markdown(text):
     patterns = [
@@ -51,7 +53,7 @@ def summarize():
     length_level = int(data.get('length', 50))  # 0–100: concise → detailed
     technical_level = int(data.get('technical', 50))  # 0–100: less technical → more technical
 
-    article_text = fetch_article_content(title)
+    article_text, article_url = fetch_article_content(title)
     if not article_text:
         return jsonify({'error': 'Article not found'}), 404
 
@@ -94,7 +96,7 @@ def summarize():
         messages=[{"role": "user", "content": prompt}]
     )
     summary = strip_markdown(response.choices[0].message.content)
-    return jsonify({'summary': summary})
+    return jsonify({'summary': summary, 'url': article_url})
 
 @app.route('/clarify', methods=['POST'])
 def clarify():
